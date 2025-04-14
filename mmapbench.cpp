@@ -107,7 +107,8 @@ int main(int argc, char** argv) {
   //uint64_t fileSize = static_cast<uint64_t>(sb.st_size);
   //if (fileSize == 0) ioctl(fd, BLKGETSIZE64, &fileSize);
 
-  uint64_t fileSize = 2ull * 1024 * 1024 * 1024 * 1024;
+  uint64_t virtSize = atoi(argv[5]);
+  uint64_t fileSize = virtSize * 1024 * 1024 * 1024 * 1024;
 
   char* p = (char*)mmap(nullptr, fileSize, PROT_READ, MAP_SHARED, fd, 0);
   assert(p != MAP_FAILED);
