@@ -92,8 +92,8 @@ uint64_t readIObytes() {
 
 
 int main(int argc, char** argv) {
-  if (argc < 5) {
-    cerr << "dev threads seq hint" << endl;
+  if (argc < 6) {
+    cerr << "dev threads seq hint virtSize(in TiB)" << endl;
     return 1;
   }
 
