@@ -92,8 +92,8 @@ uint64_t readIObytes() {
 
 
 int main(int argc, char** argv) {
-  if (argc < 6) {
-    cerr << "dev threads seq hint virtSize(in TiB)" << endl;
+  if (argc < 7) {
+    cerr << "dev threads seq hint virtSize(in TiB) hugePage" << endl;
     return 1;
   }
 
@@ -109,6 +109,7 @@ int main(int argc, char** argv) {
 
   uint64_t virtSize = atoi(argv[5]);
   uint64_t fileSize = virtSize * 1024 * 1024 * 1024 * 1024;
+  bool hugePages = atoi(argv[6]) == 1;
 
   char* p = (char*)mmap(nullptr, fileSize, PROT_READ, MAP_SHARED, fd, 0);
   assert(p != MAP_FAILED);
@@ -120,6 +121,11 @@ int main(int argc, char** argv) {
     madvise(p, fileSize, MADV_SEQUENTIAL);
   else
     madvise(p, fileSize, MADV_NORMAL);
+
+  if(hugePages)
+    madvise(p, fileSize, MADV_HUGEPAGE);
+  else
+    madvise(p, fileSize, MADV_NOHUGEPAGE);
 
   int seq = (argc > 3) ? atoi(argv[3]) : 0;
    
@@ -167,8 +173,9 @@ int main(int argc, char** argv) {
       cpuWork++;
     }
   });
+  uint64_t pageSize = hugePages ? 2ul*1024 : 4;
 
-  cout << "dev,seq,hint,threads,time,workGB,tlb,readGB,CPUwork" << endl;
+  cout << "dev,seq,hint,pageSize,threads,time,workGB,tlb,readGB,CPUwork" << endl;
   auto lastShootdowns = readTLBShootdownCount();
   auto lastIObytes = readIObytes();
   double start = gettime();
@@ -180,7 +187,7 @@ int main(int argc, char** argv) {
     for (auto& x : counts)
       workCount += x.exchange(0);
     double t = gettime() - start;
-    cout << argv[1] << "," << seq << "," << hint << "," << threads  << "," << t << "," << (workCount*4096)/(1024.0*1024*1024) << "," << (shootdowns - lastShootdowns) << "," << (IObytes-lastIObytes)/(1024.0*1024*1024) << "," << cpuWork.exchange(0) << endl;
+    cout << argv[1] << "," << seq << "," << hint << ","  << pageSize << "," << threads  << "," << t << "," << (workCount*4096)/(1024.0*1024*1024) << "," << (shootdowns - lastShootdowns) << "," << (IObytes-lastIObytes)/(1024.0*1024*1024) << "," << cpuWork.exchange(0) << endl;
     lastShootdowns = shootdowns;
     lastIObytes = IObytes;
   }
