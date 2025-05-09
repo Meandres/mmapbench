@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
   //if (fileSize == 0) ioctl(fd, BLKGETSIZE64, &fileSize);
 
   uint64_t virtSize = atoi(argv[5]);
-  uint64_t fileSize = virtSize * 1024 * 1024 * 1024 * 1024;
+  uint64_t fileSize = virtSize * 1024 * 1024 * 1024;
   bool hugePages = atoi(argv[6]) == 1;
 
   char* p = (char*)mmap(nullptr, fileSize, PROT_READ, MAP_SHARED, fd, 0);
