@@ -171,12 +171,12 @@ int main(int argc, char** argv) {
 
   cout << "dev,seq,hint,pageSize,threads,time,workGB,tlb,readGB,CPUwork" << endl;
   auto lastShootdowns = readTLBShootdownCount();
-  auto lastIObytes = readIObytesOne();
+  auto lastIObytes = readIObytes();
   double start = gettime();
   while (true) {
     sleep(1);
     uint64_t shootdowns = readTLBShootdownCount();
-    uint64_t IObytes = readIObytesOne();
+    uint64_t IObytes = readIObytes();
     uint64_t workCount = 0;
     for (auto& x : counts)
       workCount += x.exchange(0);
