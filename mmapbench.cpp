@@ -57,13 +57,13 @@ uint64_t readTLBShootdownCount() {
 }
 
 uint64_t readIObytesOne() {
-  std::ifstream stat("/sys/block/nvme8c8n1/stat");
+  std::ifstream stat("/sys/block/nvme1n1/stat");
   assert (!!stat);
 
   for (std::string line; std::getline(stat, line); ) {
     std::vector<std::string> strs;
     boost::split(strs, line, boost::is_any_of("\t "), boost::token_compress_on);
-    std::stringstream ss(strs[2]);
+    std::stringstream ss(strs[3]);
     uint64_t c;
     ss >> c;
     return c*512;
@@ -77,7 +77,7 @@ uint64_t readIObytes() {
 
   uint64_t sum = 0;
   for (std::string line; std::getline(stat, line); ) {
-    if (line.find(devName) != std::string::npos) {
+    if (line.find("nvme") != std::string::npos) {
       std::vector<std::string> strs;
       boost::split(strs, line, boost::is_any_of("\t "), boost::token_compress_on);
 
@@ -171,12 +171,12 @@ int main(int argc, char** argv) {
 
   cout << "dev,seq,hint,pageSize,threads,time,workGB,tlb,readGB,CPUwork" << endl;
   auto lastShootdowns = readTLBShootdownCount();
-  auto lastIObytes = readIObytes();
+  auto lastIObytes = readIObytesOne();
   double start = gettime();
   while (true) {
     sleep(1);
     uint64_t shootdowns = readTLBShootdownCount();
-    uint64_t IObytes = readIObytes();
+    uint64_t IObytes = readIObytesOne();
     uint64_t workCount = 0;
     for (auto& x : counts)
       workCount += x.exchange(0);
