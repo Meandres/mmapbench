@@ -71,7 +71,7 @@ uint64_t readIObytesOne() {
   return 0;
 }
 
-uint64_t readIObytes(std::string devName) {
+uint64_t readIObytes() {
   std::ifstream stat("/proc/diskstats");
   assert (!!stat);
 
@@ -92,7 +92,7 @@ uint64_t readIObytes(std::string devName) {
 
 
 int main(int argc, char** argv) {
-  if (argc < 7) {
+  if (argc < 6) {
     cerr << "dev threads seq hint virtSize(in TiB)" << endl;
     return 1;
   }
@@ -104,9 +104,6 @@ int main(int argc, char** argv) {
 
   struct stat sb;
   check(stat(argv[1], &sb) != -1);
-  std::string devName(argv[1]);
-  devName.erase(0, 5);
-  std::cout << devName << std::endl;
   //uint64_t fileSize = static_cast<uint64_t>(sb.st_size);
   //if (fileSize == 0) ioctl(fd, BLKGETSIZE64, &fileSize);
 
@@ -174,12 +171,12 @@ int main(int argc, char** argv) {
 
   cout << "dev,seq,hint,pageSize,threads,time,workGB,tlb,readGB,CPUwork" << endl;
   auto lastShootdowns = readTLBShootdownCount();
-  auto lastIObytes = readIObytes(devName);
+  auto lastIObytes = readIObytes();
   double start = gettime();
   while (true) {
     sleep(1);
     uint64_t shootdowns = readTLBShootdownCount();
-    uint64_t IObytes = readIObytes(devName);
+    uint64_t IObytes = readIObytes();
     uint64_t workCount = 0;
     for (auto& x : counts)
       workCount += x.exchange(0);
