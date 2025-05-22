@@ -71,13 +71,13 @@ uint64_t readIObytesOne() {
   return 0;
 }
 
-uint64_t readIObytes() {
+uint64_t readIObytes(std::string devName) {
   std::ifstream stat("/proc/diskstats");
   assert (!!stat);
 
   uint64_t sum = 0;
   for (std::string line; std::getline(stat, line); ) {
-    if (line.find("nvme") != std::string::npos) {
+    if (line.find(devName) != std::string::npos) {
       std::vector<std::string> strs;
       boost::split(strs, line, boost::is_any_of("\t "), boost::token_compress_on);
 
@@ -93,7 +93,7 @@ uint64_t readIObytes() {
 
 int main(int argc, char** argv) {
   if (argc < 7) {
-    cerr << "dev threads seq hint virtSize(in TiB) hugePage" << endl;
+    cerr << "dev threads seq hint virtSize(in TiB)" << endl;
     return 1;
   }
 
@@ -104,12 +104,14 @@ int main(int argc, char** argv) {
 
   struct stat sb;
   check(stat(argv[1], &sb) != -1);
+  std::string devName(argv[1]);
+  devName.erase(0, 5);
+  std::cout << devName << std::endl;
   //uint64_t fileSize = static_cast<uint64_t>(sb.st_size);
   //if (fileSize == 0) ioctl(fd, BLKGETSIZE64, &fileSize);
 
   uint64_t virtSize = atoi(argv[5]);
   uint64_t fileSize = virtSize * 1024 * 1024 * 1024;
-  bool hugePages = atoi(argv[6]) == 1;
 
   char* p = (char*)mmap(nullptr, fileSize, PROT_READ, MAP_SHARED, fd, 0);
   assert(p != MAP_FAILED);
@@ -121,11 +123,6 @@ int main(int argc, char** argv) {
     madvise(p, fileSize, MADV_SEQUENTIAL);
   else
     madvise(p, fileSize, MADV_NORMAL);
-
-  if(hugePages)
-    madvise(p, fileSize, MADV_HUGEPAGE);
-  else
-    madvise(p, fileSize, MADV_NOHUGEPAGE);
 
   int seq = (argc > 3) ? atoi(argv[3]) : 0;
    
@@ -173,16 +170,16 @@ int main(int argc, char** argv) {
       cpuWork++;
     }
   });
-  uint64_t pageSize = hugePages ? 2ul*1024 : 4;
+  uint64_t pageSize = 4096ul;
 
   cout << "dev,seq,hint,pageSize,threads,time,workGB,tlb,readGB,CPUwork" << endl;
   auto lastShootdowns = readTLBShootdownCount();
-  auto lastIObytes = readIObytes();
+  auto lastIObytes = readIObytes(devName);
   double start = gettime();
   while (true) {
     sleep(1);
     uint64_t shootdowns = readTLBShootdownCount();
-    uint64_t IObytes = readIObytes();
+    uint64_t IObytes = readIObytes(devName);
     uint64_t workCount = 0;
     for (auto& x : counts)
       workCount += x.exchange(0);
