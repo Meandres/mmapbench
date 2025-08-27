@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
 
   atomic<uint64_t> cpuWork(0);
   t.emplace_back([&]() {
-    while (true) {
+    while (keepGoing.load()) {
       double x = cpuWork.load();
       for (uint64_t r=0; r<10000; r++) {
 	x = exp(log(x));
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
       break;
     }
   }
-  for(auto& t: t){
+  for(auto &t: t){
     t.join();
   }
 
