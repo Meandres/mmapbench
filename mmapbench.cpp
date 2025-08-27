@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int fd = open(argv[1], O_RDRW);
+  int fd = open(argv[1], O_RDWR);
   check(fd != -1);
 
   unsigned threads = atoi(argv[4]);
