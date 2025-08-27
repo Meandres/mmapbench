@@ -90,43 +90,33 @@ uint64_t readIObytes() {
   return sum;
 }
 
+std::atomic<bool> keepGoing;
 
 int main(int argc, char** argv) {
   if (argc < 6) {
-    cerr << "dev threads seq hint virtSize(in TiB)" << endl;
+    cerr << "dev virtSize(in GiB) workload threads timetorun(in sec)" << endl;
     return 1;
   }
 
   int fd = open(argv[1], O_RDONLY);
   check(fd != -1);
 
-  unsigned threads = atoi(argv[2]);
+  unsigned threads = atoi(argv[4]);
+  keepGoing.store(true);
 
   struct stat sb;
   check(stat(argv[1], &sb) != -1);
-  //uint64_t fileSize = static_cast<uint64_t>(sb.st_size);
-  //if (fileSize == 0) ioctl(fd, BLKGETSIZE64, &fileSize);
+  int maxTime = atoi(argv[5]);
+  int mode = atoi(argv[3]);
 
-  uint64_t virtSize = atoi(argv[5]);
+  uint64_t virtSize = atoi(argv[2]);
   uint64_t fileSize = virtSize * 1024 * 1024 * 1024;
 
   char* p = (char*)mmap(nullptr, fileSize, PROT_READ, MAP_SHARED, fd, 0);
   assert(p != MAP_FAILED);
 
-  int hint = (argc > 4) ? atoi(argv[4]) : 0;
-  if (hint == 1)
-    madvise(p, fileSize, MADV_RANDOM);
-  else if (hint == 2)
-    madvise(p, fileSize, MADV_SEQUENTIAL);
-  else
-    madvise(p, fileSize, MADV_NORMAL);
-
-  int seq = (argc > 3) ? atoi(argv[3]) : 0;
-   
   tbb::enumerable_thread_specific<atomic<uint64_t>> counts;
   tbb::enumerable_thread_specific<atomic<uint64_t>> sums;
-
-  atomic<uint64_t> seqScanPos(0);
 
   vector<thread> t;
   for (unsigned i=0; i<threads; i++) {
@@ -134,23 +124,24 @@ int main(int argc, char** argv) {
       atomic<uint64_t>& count = counts.local();
       atomic<uint64_t>& sum = sums.local();
 
-      if (seq) {
-	while (true) {
-	  uint64_t scanBlock = 128*1024*1024;
-	  uint64_t pos = (seqScanPos += scanBlock) % fileSize;
+    if(mode == 0){
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<uint64_t> rnd(0, fileSize/4096ul);
 
-	  for (uint64_t j=0; j<scanBlock; j+=4096) {
-	    sum += p[pos + j];
-	    count++;
-	  }
+	while (keepGoing.load()) {
+    uint64_t pos = rnd(gen)*4096ul;
+	  p[pos] = count;
+	  count++;
 	}
       } else {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_int_distribution<uint64_t> rnd(0, fileSize);
+	std::uniform_int_distribution<uint64_t> rnd(0, fileSize/4096ul);
 
-	while (true) {
-	  sum += p[rnd(gen)];
+	while (keepGoing.load()) {
+    uint64_t pos = rnd(gen)*4096ul;
+	  sum += p[pos];
 	  count++;
 	}
       }
@@ -167,23 +158,25 @@ int main(int argc, char** argv) {
       cpuWork++;
     }
   });
-  uint64_t pageSize = 4096ul;
 
-  cout << "dev,seq,hint,pageSize,threads,time,workGB,tlb,readGB,CPUwork" << endl;
+  cout << "system,workload,pageSize,thread,time,throughput" << endl;
   auto lastShootdowns = readTLBShootdownCount();
   auto lastIObytes = readIObytes();
   double start = gettime();
   while (true) {
     sleep(1);
-    uint64_t shootdowns = readTLBShootdownCount();
-    uint64_t IObytes = readIObytes();
     uint64_t workCount = 0;
     for (auto& x : counts)
       workCount += x.exchange(0);
     double t = gettime() - start;
-    cout << argv[1] << "," << seq << "," << hint << ","  << pageSize << "," << threads  << "," << t << "," << (workCount*4096)/(1024.0*1024*1024) << "," << (shootdowns - lastShootdowns) << "," << (IObytes-lastIObytes)/(1024.0*1024*1024) << "," << cpuWork.exchange(0) << endl;
-    lastShootdowns = shootdowns;
-    lastIObytes = IObytes;
+    cout << "mmap," << mode << ",4096," << threads  << "," << t << "," << workCount << endl;
+    if(t >= maxTime){
+      keepGoing.store(false);
+      break;
+    }
+  }
+  for(auto& t: t){
+    t.join();
   }
 
   return 0;
