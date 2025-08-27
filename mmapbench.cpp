@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int fd = open(argv[1], O_RDONLY);
+  int fd = open(argv[1], O_RDRW);
   check(fd != -1);
 
   unsigned threads = atoi(argv[4]);
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
   uint64_t virtSize = atoi(argv[2]);
   uint64_t fileSize = virtSize * 1024 * 1024 * 1024;
 
-  char* p = (char*)mmap(nullptr, fileSize, PROT_READ, MAP_SHARED, fd, 0);
+  char* p = (char*)mmap(nullptr, fileSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
   assert(p != MAP_FAILED);
 
   tbb::enumerable_thread_specific<atomic<uint64_t>> counts;
