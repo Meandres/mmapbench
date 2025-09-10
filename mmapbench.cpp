@@ -125,26 +125,26 @@ int main(int argc, char** argv) {
       atomic<uint64_t>& sum = sums.local();
 
     if(mode == 0){
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<uint64_t> rnd(0, fileSize/4096ul);
+	    while (keepGoing.load()) {
+	      uint64_t scanBlock = 512*1024*1024;
+	      uint64_t pos = (seqScanPos += scanBlock) % fileSize;
 
-	while (keepGoing.load()) {
-    uint64_t pos = rnd(gen)*4096ul;
-	  p[pos] = count;
-	  count++;
-	}
-      } else {
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<uint64_t> rnd(0, fileSize/4096ul);
+	      for (uint64_t j=0; j<scanBlock; j+=4096) {
+	        sum += p[pos + j];
+	        count++;
+	      }
+	    }
+    } else {
+	    std::random_device rd;
+	    std::mt19937 gen(rd());
+	    std::uniform_int_distribution<uint64_t> rnd(0, fileSize/4096ul);
 
-	while (keepGoing.load()) {
-    uint64_t pos = rnd(gen)*4096ul;
-	  sum += p[pos];
-	  count++;
-	}
-      }
+	    while (keepGoing.load()) {
+        uint64_t pos = rnd(gen)*4096ul;
+	      sum += p[pos];
+	      count++;
+	    }
+    }
     });
   }
 
