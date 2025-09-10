@@ -117,6 +117,7 @@ int main(int argc, char** argv) {
 
   tbb::enumerable_thread_specific<atomic<uint64_t>> counts;
   tbb::enumerable_thread_specific<atomic<uint64_t>> sums;
+  atomic<uint64_t> seqScanPos(0);
 
   vector<thread> t;
   for (unsigned i=0; i<threads; i++) {
